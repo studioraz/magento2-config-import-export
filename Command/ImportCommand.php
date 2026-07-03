@@ -13,6 +13,7 @@ use Magento\Framework\Registry;
 use Semaio\ConfigImportExport\Model\File\FinderInterface;
 use Semaio\ConfigImportExport\Model\File\Reader\ReaderInterface;
 use Semaio\ConfigImportExport\Model\Processor\ImportProcessorInterface;
+use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -138,7 +139,7 @@ class ImportCommand extends AbstractCommand
             'lock-config',
             'c',
             InputOption::VALUE_NONE,
-            'Additionally lock imported values in app/etc/config.php (read-only in Admin).'
+            'Additionally lock imported values in app/etc/config.php (read-only in Admin) and run app:config:import to apply deployment config.'
         );
 
         parent::configure();
@@ -198,6 +199,19 @@ class ImportCommand extends AbstractCommand
             $this->getCacheManager()->clean(['config', 'full_page']);
 
             $output->writeln(sprintf('<info>Cache cleared.</info>'));
+        }
+
+        // When --lock-config is active, run app:config:import to apply the deployment config
+        if ($input->getOption('lock-config')) {
+            $this->writeSection('Running app:config:import');
+
+            $appConfigImport = $this->getApplication()->find('app:config:import');
+            $returnCode = $appConfigImport->run(new ArrayInput([]), $output);
+
+            if ($returnCode !== 0) {
+                $output->writeln('<error>app:config:import failed. Please run it manually.</error>');
+                return $returnCode;
+            }
         }
 
         return 0;
